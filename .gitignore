@@ -1,0 +1,19 @@
+# Config with secrets
+config.yaml
+config.test.yaml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Data
+data/
+*.db
+
+# Env
+.env
+
+# Claude
+.claude/
