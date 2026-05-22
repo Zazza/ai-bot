@@ -185,8 +185,8 @@ class TelegramAdapter(BaseAdapter):
         is_reply_to_bot = False
         if msg.reply_to_message:
             reply_user = msg.reply_to_message.from_user
-            logger.debug("Reply to: from_user=%s bot_id=%s chat=%s",
-                         reply_user.id if reply_user else None, self.bot.id, msg.chat.id)
+            logger.info("Reply to: from_user=%s bot_id=%s chat=%s",
+                        reply_user.id if reply_user else None, self.bot.id, msg.chat.id)
             if reply_user and reply_user.id == self.bot.id:
                 is_reply_to_bot = True
 
