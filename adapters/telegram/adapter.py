@@ -204,12 +204,19 @@ class TelegramAdapter(BaseAdapter):
         response = await self.engine.process(internal)
 
         if response is None:
+            logger.info("Engine returned None — silent")
             return  # бот решил промолчать
 
         if response.blocked:
+            logger.info("Response blocked by safety")
             if response.warn_message:
                 await msg.answer(response.warn_message)
             return
 
+        logger.info("Response text (%d chars): %.200s", len(response.text), response.text)
         if response.text:
-            await msg.answer(InternalResponse.sanitize(response.text))
+            sanitized = InternalResponse.sanitize(response.text)
+            logger.info("Sanitized (%d chars): %.200s", len(sanitized), sanitized)
+            await msg.answer(sanitized)
+        else:
+            logger.warning("Empty response text from engine")
