@@ -102,8 +102,16 @@ class TelegramAdapter(BaseAdapter):
     # ── Main message handler ──────────────────────────────────
 
     async def _handle_message(self, msg: Message) -> None:
-        if msg.from_user is None or msg.from_user.is_bot:
+        if msg.from_user is None:
             return
+
+        # Пропускаем ботов — кроме фото в watch-режиме
+        if msg.from_user.is_bot:
+            if not msg.photo:
+                return
+            watch = await self.engine.context.get_setting(str(msg.chat.id), "watch")
+            if watch != "on":
+                return
 
         # Rate limit
         if self.engine._check_rate_limit(str(msg.from_user.id)):
