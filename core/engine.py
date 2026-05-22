@@ -175,6 +175,10 @@ class Engine:
         """LLM вызов с поддержкой tool calling (поиск)."""
         response = await self.llm.chat(messages, tools=tools)
         msg = response.choices[0]
+        logger.info("LLM response: finish_reason=%s content=%s tool_calls=%s",
+                     msg.finish_reason,
+                     repr(msg.message.content[:200]) if msg.message.content else None,
+                     bool(msg.message.tool_calls))
 
         # Если LLM вызвала tool (поиск)
         if msg.finish_reason == "tool_calls" and msg.message.tool_calls:
