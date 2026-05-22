@@ -76,6 +76,14 @@ class ChatConfig:
 
 
 @dataclass
+class APIConfig:
+    enabled: bool = False
+    host: str = "0.0.0.0"
+    port: int = 8080
+    token: str = ""
+
+
+@dataclass
 class AppConfig:
     adapter: str = "telegram"
     bot: BotConfig = field(default_factory=BotConfig)
@@ -84,6 +92,7 @@ class AppConfig:
     safety: SafetyConfig = field(default_factory=SafetyConfig)
     search: SearchConfig = field(default_factory=SearchConfig)
     chat: ChatConfig = field(default_factory=ChatConfig)
+    api: APIConfig = field(default_factory=APIConfig)
 
 
 def load_config(path: str | Path = "config.yaml") -> AppConfig:
@@ -108,6 +117,7 @@ def _build_config(raw: dict) -> AppConfig:
     safety_raw = raw.get("safety", {})
     search_raw = raw.get("search", {})
     chat_raw = raw.get("chat", {})
+    api_raw = raw.get("api", {})
 
     return AppConfig(
         adapter=raw.get("adapter", "telegram"),
@@ -117,4 +127,5 @@ def _build_config(raw: dict) -> AppConfig:
         safety=SafetyConfig(**{k: v for k, v in safety_raw.items() if k in SafetyConfig.__dataclass_fields__}),
         search=SearchConfig(**search_raw),
         chat=ChatConfig(**chat_raw),
+        api=APIConfig(**api_raw),
     )

@@ -6,6 +6,8 @@ import asyncio
 import logging
 import sys
 
+from aiohttp import web
+
 from config import load_config
 from core.engine import Engine
 from llm.client import LLMClient
@@ -64,11 +66,24 @@ async def main():
 
     logger.info("Starting with adapter: %s", config.adapter)
 
+    # API server (optional)
+    api_runner = None
+    if config.api.enabled:
+        from api.server import create_app
+        app = create_app(config, engine, adapter.bot)
+        api_runner = web.AppRunner(app)
+        await api_runner.setup()
+        site = web.TCPSite(api_runner, config.api.host, config.api.port)
+        await site.start()
+        logger.info("API server listening on %s:%s", config.api.host, config.api.port)
+
     try:
         await adapter.start()
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
+        if api_runner:
+            await api_runner.cleanup()
         await adapter.stop()
         await context.close()
         if search:
