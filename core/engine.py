@@ -180,6 +180,12 @@ class Engine:
                      repr(msg.message.content[:200]) if msg.message.content else None,
                      bool(msg.message.tool_calls))
 
+        # Если контент пустой — повторить один раз
+        if not msg.message.content:
+            logger.warning("Empty LLM response, retrying...")
+            response = await self.llm.chat(messages, tools=tools)
+            msg = response.choices[0]
+
         # Если LLM вызвала tool (поиск)
         if msg.finish_reason == "tool_calls" and msg.message.tool_calls:
             for tool_call in msg.message.tool_calls:
