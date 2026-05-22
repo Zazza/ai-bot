@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 
-from core.models import InternalMessage
+from core.models import InternalMessage, InternalResponse
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -83,7 +83,7 @@ async def _handle_send(request: web.Request) -> web.Response:
     # 5. Send response to chat via Telegram Bot
     if response and response.text:
         try:
-            await bot.send_message(chat_id, response.text)
+            await bot.send_message(chat_id, InternalResponse.sanitize(response.text))
         except Exception as e:
             logger.error("Failed to send message: %s", e)
             return web.json_response({"ok": False, "error": "send failed"}, status=502)

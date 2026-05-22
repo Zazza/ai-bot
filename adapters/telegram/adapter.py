@@ -212,4 +212,4 @@ class TelegramAdapter(BaseAdapter):
             return
 
         if response.text:
-            await msg.answer(response.text)
+            await msg.answer(InternalResponse.sanitize(response.text))

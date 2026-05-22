@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -32,6 +33,15 @@ class InternalResponse:
     text: str
     blocked: bool = False
     warn_message: str | None = None
+
+    @staticmethod
+    def sanitize(text: str) -> str:
+        """Очистить ответ LLM от XML-подобного мусора (<tool_call...> и т.д.)."""
+        # Убрать блоки вида <tool_call...>...</tool_call...>
+        text = re.sub(r'<tool_call[^>]*>.*?</tool_call[^>]*>', '', text, flags=re.DOTALL)
+        # Убрать прочие XML-подобные теги
+        text = re.sub(r'<[^>]+>', '', text)
+        return text.strip()
 
 
 @dataclass

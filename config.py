@@ -22,6 +22,7 @@ class LLMConfig:
     vision_model: str = "gpt-4o-mini"
     max_tokens: int = 1024
     temperature: float = 0.8
+    tools_enabled: bool = True  # False для моделей без function calling (glm и т.д.)
 
 
 @dataclass

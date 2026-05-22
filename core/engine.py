@@ -128,7 +128,7 @@ class Engine:
 
         # 5. LLM вызов (с поиском или без)
         tools = None
-        if self.search and cfg.search.enabled:
+        if cfg.llm.tools_enabled and self.search and cfg.search.enabled:
             tools = self.search.get_tools_schema()
 
         response_text = ""
