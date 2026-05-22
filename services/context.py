@@ -116,3 +116,11 @@ class ContextService:
             (chat_id, key, value),
         )
         await self._db.commit()
+
+    async def get_topics(self, chat_id: str, defaults: list[str]) -> list[str]:
+        """Получить список тем для чата из настроек или вернуть defaults."""
+        raw = await self.get_setting(chat_id, "topics")
+        if raw:
+            topics = [t.strip() for t in raw.split(",") if t.strip()]
+            return topics if topics else defaults
+        return defaults

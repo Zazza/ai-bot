@@ -7,7 +7,8 @@ import random
 from typing import TYPE_CHECKING
 
 from core.models import HistoryMessage, InternalMessage, InternalResponse, Role
-from prompts.system import build_system_prompt
+from prompts.system import build_system_prompt, build_chatty_hint
+from services.triggers import TriggerService
 
 if TYPE_CHECKING:
     from config import AppConfig
@@ -39,6 +40,7 @@ class Engine:
         self.context: ContextService | None = None
         self.search: SearchService | None = None
         self.name_matcher: NameMatcher | None = None
+        self.triggers = TriggerService(config.chat)
         self._rate_counters: dict[str, list[float]] = {}
 
     def set_services(
@@ -66,12 +68,32 @@ class Engine:
 
         # 2. Определить, обращаются ли к боту
         addressed = self._is_addressed(msg)
+        logger.debug("process: chat=%s addressed=%s watch=%s has_image=%s text=%.80s",
+                     msg.chat_id, addressed, watch_mode, bool(msg.image_base64), msg.text or "")
 
+        triggered = None
         if not addressed and not watch_mode:
-            if not cfg.chat.respond_to_all:
-                return None
-            if random.random() > cfg.chat.response_probability:
-                return None
+            # Проверить чатти-режим
+            chatty = await self.context.get_setting(msg.chat_id, "chatty")
+            if chatty != "on":
+                if not cfg.chat.respond_to_all:
+                    return None
+                if random.random() > cfg.chat.response_probability:
+                    return None
+            else:
+                # Чатти включён — проверить триггеры
+                topics = await self.context.get_topics(msg.chat_id, cfg.chat.default_topics)
+                triggered = self.triggers.evaluate(
+                    text=msg.text or "",
+                    chat_id=msg.chat_id,
+                    is_bot=msg.user_id == "bot",
+                    topics=topics,
+                )
+                if not triggered:
+                    return None
+        else:
+            # Прямое обращение — сбросить счётчик
+            self.triggers.reset_counter(msg.chat_id)
 
         # 2. Safety check входящего
         if self.safety and cfg.safety.enabled:
@@ -89,6 +111,9 @@ class Engine:
 
         # 4. Собрать messages для LLM
         system_prompt = build_system_prompt(cfg.personality)
+        if triggered:
+            trigger_type, topic_matched = triggered
+            system_prompt += build_chatty_hint(trigger_type, topic_matched)
         messages = [{"role": "system", "content": system_prompt}]
 
         for h in history:

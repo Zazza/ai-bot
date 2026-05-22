@@ -51,6 +51,7 @@ class TelegramAdapter(BaseAdapter):
         self.dp.message(Command("clear"))(self._cmd_clear)
         self.dp.message(Command("help"))(self._cmd_help)
         self.dp.message(Command("watch"))(self._cmd_watch)
+        self.dp.message(Command("chatty"))(self._cmd_chatty)
         self.dp.message()(self._handle_message)
 
     async def start(self) -> None:
@@ -79,6 +80,8 @@ class TelegramAdapter(BaseAdapter):
             "/clear — сбросить контекст разговора\n"
             "/watch on — анализировать все фото автоматически\n"
             "/watch off — перестать анализировать фото\n"
+            "/chatty on — встревать в разговор автоматически\n"
+            "/chatty off — отвечать только при обращении\n"
             "/help — эта справка\n\n"
             "Просто напиши моё имя или ответь на моё сообщение!"
         )
@@ -99,19 +102,40 @@ class TelegramAdapter(BaseAdapter):
             status = "включён 👀" if current == "on" else "выключен"
             await msg.answer(f"Режим наблюдения: {status}\n/watch on — включить\n/watch off — выключить")
 
+    async def _cmd_chatty(self, msg: Message) -> None:
+        text = (msg.text or "").strip().lower()
+        chat_id = str(msg.chat.id)
+
+        if text.endswith("on"):
+            await self.engine.context.set_setting(chat_id, "chatty", "on")
+            await msg.answer("Ок, теперь буду встревать в разговор 💬")
+        elif text.endswith("off"):
+            await self.engine.context.set_setting(chat_id, "chatty", "off")
+            await msg.answer("Поняла, буду молчать пока не позовёте 🤐")
+        else:
+            current = await self.engine.context.get_setting(chat_id, "chatty")
+            status = "включён 💬" if current == "on" else "выключен"
+            await msg.answer(f"Режим болтушки: {status}\n/chatty on — включить\n/chatty off — выключить")
+
     # ── Main message handler ──────────────────────────────────
 
     async def _handle_message(self, msg: Message) -> None:
         if msg.from_user is None:
             return
 
-        # Пропускаем ботов — кроме фото в watch-режиме
+        # Пропускаем ботов — кроме медиа в watch-режиме
         if msg.from_user.is_bot:
-            if not msg.photo:
+            has_media = msg.photo or msg.animation or msg.video or msg.document
+            if not has_media:
                 return
             watch = await self.engine.context.get_setting(str(msg.chat.id), "watch")
+            logger.debug("Bot message: watch=%s, photo=%s, animation=%s, video=%s, doc=%s, caption=%s",
+                         watch, bool(msg.photo), bool(msg.animation), bool(msg.video), bool(msg.document),
+                         (msg.caption or "")[:50] if msg.caption else None)
             if watch != "on":
                 return
+            media_type = "photo" if msg.photo else "animation" if msg.animation else "video" if msg.video else "document"
+            logger.info("Bot media in watch mode: %s from %s", media_type, msg.from_user.username or msg.from_user.first_name)
 
         # Rate limit
         if self.engine._check_rate_limit(str(msg.from_user.id)):
@@ -124,6 +148,27 @@ class TelegramAdapter(BaseAdapter):
         if msg.photo:
             photo = msg.photo[-1]  # самое большое
             file = await self.bot.get_file(photo.file_id)
+            buffer = BytesIO()
+            await self.bot.download_file(file.file_path, buffer)
+            image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        elif msg.animation:
+            # GIF / webm — берём thumbnail
+            thumb = msg.animation.thumbnail
+            if thumb:
+                file = await self.bot.get_file(thumb.file_id)
+                buffer = BytesIO()
+                await self.bot.download_file(file.file_path, buffer)
+                image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        elif msg.video:
+            # Видео — берём thumbnail
+            thumb = msg.video.thumbnail
+            if thumb:
+                file = await self.bot.get_file(thumb.file_id)
+                buffer = BytesIO()
+                await self.bot.download_file(file.file_path, buffer)
+                image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        elif msg.document and msg.document.thumbnail:
+            file = await self.bot.get_file(msg.document.thumbnail.file_id)
             buffer = BytesIO()
             await self.bot.download_file(file.file_path, buffer)
             image_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")

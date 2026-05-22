@@ -32,3 +32,23 @@ def build_system_prompt(p: PersonalityConfig) -> str:
     ])
 
     return "\n".join(parts)
+
+
+def build_chatty_hint(trigger_type: str, topic: str | None = None) -> str:
+    """Дополнение к system prompt при встревании."""
+    if trigger_type == "question":
+        return (
+            "\n\nТы услышала вопрос, на который можешь ответить. "
+            "Встрянь коротко, 1-2 предложения. Не извиняйся, что встряла."
+        )
+    elif trigger_type == "topic":
+        hint = (
+            f"\n\nРечь зашла о «{topic}» — тебе есть что сказать. "
+            "Встрянь коротко, 1-2 предложения. Не извиняйся, что встряла."
+        )
+        return hint
+    else:  # counter
+        return (
+            "\n\nТы «проснулась» — тебе кажется, что тебе есть что добавить. "
+            "Скажи что-то к месту, 1-2 предложения. Не извиняйся, что встряла."
+        )

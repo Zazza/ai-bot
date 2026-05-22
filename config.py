@@ -62,6 +62,17 @@ class ChatConfig:
     rate_limit_per_min: int = 30
     respond_to_all: bool = False
     response_probability: float = 0.15
+    # --- триггеры встревания ---
+    chatty_enabled: bool = True
+    question_trigger_prob: float = 0.8
+    topic_trigger_prob: float = 0.3
+    counter_trigger_prob: float = 0.5
+    counter_min: int = 5
+    counter_max: int = 10
+    default_topics: list[str] = field(default_factory=lambda: [
+        "фильм", "сериал", "школа", "мода", "музыка", "аниме",
+        "мем", "игр", "TikTok", "Instagram",
+    ])
 
 
 @dataclass
