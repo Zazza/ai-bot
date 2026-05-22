@@ -8,11 +8,9 @@ import os
 from io import BytesIO
 from typing import TYPE_CHECKING
 
-import aiohttp
-from aiohttp_socks import ProxyConnector
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from aiogram.client.session.aiohttp import AiohttpSession as _AiohttpSession
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
@@ -26,20 +24,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger("telegram_adapter")
 
 
-class SocksSession(_AiohttpSession):
-    """AiohttpSession с поддержкой SOCKS5 через ProxyConnector."""
-
-    def __init__(self, proxy_url: str):
-        super().__init__()
-        self._proxy_url = proxy_url
-
-    async def get_session(self) -> aiohttp.ClientSession:
-        if self._session is None or self._session.closed:
-            self._connector = ProxyConnector.from_url(self._proxy_url)
-            self._session = aiohttp.ClientSession(connector=self._connector)
-        return self._session
-
-
 class TelegramAdapter(BaseAdapter):
     """Telegram фронтенд через aiogram 3."""
 
@@ -51,7 +35,7 @@ class TelegramAdapter(BaseAdapter):
         proxy = os.environ.get("TELEGRAM_PROXY")
         if proxy:
             logger.info("Using proxy: %s", proxy)
-            session = SocksSession(proxy)
+            session = AiohttpSession(proxy=proxy)
 
         self.bot = Bot(
             token=config.bot.token,
