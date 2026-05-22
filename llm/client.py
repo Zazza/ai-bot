@@ -6,6 +6,7 @@ import base64
 import logging
 from typing import TYPE_CHECKING
 
+import httpx
 from openai import AsyncOpenAI
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ class LLMClient:
         self.client = AsyncOpenAI(
             api_key=config.api_key,
             base_url=config.base_url,
+            http_client=httpx.AsyncClient(proxy=None),
         )
         self.model = config.model
         self.vision_model = config.vision_model
