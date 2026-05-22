@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import base64
 import logging
+import os
 from io import BytesIO
 from typing import TYPE_CHECKING
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
@@ -28,9 +30,17 @@ class TelegramAdapter(BaseAdapter):
     def __init__(self, engine, config: AppConfig):
         super().__init__(engine)
         self.config = config
+
+        session = None
+        proxy = os.environ.get("TELEGRAM_PROXY")
+        if proxy:
+            logger.info("Using proxy: %s", proxy)
+            session = AiohttpSession(proxy=proxy)
+
         self.bot = Bot(
             token=config.bot.token,
             default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            session=session,
         )
         self.dp = Dispatcher()
         self._bot_username: str | None = None
