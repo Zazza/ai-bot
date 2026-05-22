@@ -183,8 +183,12 @@ class TelegramAdapter(BaseAdapter):
             is_mention = f"@{self._bot_username}".lower() in msg.text.lower()
 
         is_reply_to_bot = False
-        if msg.reply_to_message and msg.reply_to_message.from_user:
-            is_reply_to_bot = msg.reply_to_message.from_user.id == self.bot.id
+        if msg.reply_to_message:
+            reply_user = msg.reply_to_message.from_user
+            logger.debug("Reply to: from_user=%s bot_id=%s chat=%s",
+                         reply_user.id if reply_user else None, self.bot.id, msg.chat.id)
+            if reply_user and reply_user.id == self.bot.id:
+                is_reply_to_bot = True
 
         internal = InternalMessage(
             chat_id=str(msg.chat.id),
