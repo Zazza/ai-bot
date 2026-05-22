@@ -43,6 +43,24 @@ class TelegramAdapter(BaseAdapter):
             session=session,
         )
         self.dp = Dispatcher()
+
+        # Middleware: логировать ВСЕ входящие сообщения
+        from aiogram import BaseMiddleware
+        class _LogMiddleware(BaseMiddleware):
+            async def __call__(self, handler, event, data):
+                if isinstance(event, Message):
+                    src = event.from_user
+                    sender = f"{src.first_name} (bot={src.is_bot}, id={src.id})" if src else "unknown"
+                    has_photo = bool(event.photo)
+                    has_anim = bool(event.animation)
+                    has_video = bool(event.video)
+                    text = (event.text or event.caption or "")[:80]
+                    logger.info("INCOMING: from=%s photo=%s anim=%s video=%s text='%s'",
+                                sender, has_photo, has_anim, has_video, text)
+                return await handler(event, data)
+
+        self.dp.message.middleware(_LogMiddleware())
+
         self._bot_username: str | None = None
         self._register_handlers()
 
