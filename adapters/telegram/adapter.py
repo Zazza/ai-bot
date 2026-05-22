@@ -50,6 +50,7 @@ class TelegramAdapter(BaseAdapter):
         self.dp.message(CommandStart())(self._cmd_start)
         self.dp.message(Command("clear"))(self._cmd_clear)
         self.dp.message(Command("help"))(self._cmd_help)
+        self.dp.message(Command("watch"))(self._cmd_watch)
         self.dp.message()(self._handle_message)
 
     async def start(self) -> None:
@@ -76,10 +77,27 @@ class TelegramAdapter(BaseAdapter):
         text = (
             "Команды:\n"
             "/clear — сбросить контекст разговора\n"
+            "/watch on — анализировать все фото автоматически\n"
+            "/watch off — перестать анализировать фото\n"
             "/help — эта справка\n\n"
             "Просто напиши моё имя или ответь на моё сообщение!"
         )
         await msg.answer(text)
+
+    async def _cmd_watch(self, msg: Message) -> None:
+        text = (msg.text or "").strip().lower()
+        chat_id = str(msg.chat.id)
+
+        if text.endswith("on"):
+            await self.engine.context.set_setting(chat_id, "watch", "on")
+            await msg.answer("Ок, теперь слежу за всеми фото 👀")
+        elif text.endswith("off"):
+            await self.engine.context.set_setting(chat_id, "watch", "off")
+            await msg.answer("Всё, больше не подглядываю 🙈")
+        else:
+            current = await self.engine.context.get_setting(chat_id, "watch")
+            status = "включён 👀" if current == "on" else "выключен"
+            await msg.answer(f"Режим наблюдения: {status}\n/watch on — включить\n/watch off — выключить")
 
     # ── Main message handler ──────────────────────────────────
 

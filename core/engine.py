@@ -19,6 +19,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("engine")
 
+WATCH_VISION_PROMPT = (
+    "Опиши что происходит на этом фото. Фокус только на людях: "
+    "пол, возраст примерно, одежда (цвет, тип), что делают, куда идут. "
+    "Не описывай здания, мебель, деревья, заборы — только динамика и люди. "
+    "Если людей нет — скажи что никого не видно, одним предложением. "
+    "Отвечай с лёгким юмором, как подросток. 1-3 предложения."
+)
+
 
 class Engine:
     """Adapter-agnostic processing pipeline."""
@@ -50,9 +58,15 @@ class Engine:
         """Обработать сообщение. Возвращает None если бот должен промолчать."""
         cfg = self.config
 
-        # 1. Определить, обращаются ли к боту
+        # 1. Проверить watch mode для фото
+        watch_mode = False
+        if msg.image_base64:
+            watch_mode = await self.context.get_setting(msg.chat_id, "watch") == "on"
+
+        # 2. Определить, обращаются ли к боту
         addressed = self._is_addressed(msg)
-        if not addressed:
+
+        if not addressed and not watch_mode:
             if not cfg.chat.respond_to_all:
                 return None
             if random.random() > cfg.chat.response_probability:
@@ -94,6 +108,8 @@ class Engine:
         response_text = ""
 
         if msg.image_base64:
+            if watch_mode:
+                messages.append({"role": "user", "content": WATCH_VISION_PROMPT})
             response_text = await self.llm.vision(messages, msg.image_base64)
         else:
             response_text = await self._chat_with_tools(messages, tools)

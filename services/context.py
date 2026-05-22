@@ -28,6 +28,15 @@ CREATE INDEX IF NOT EXISTS idx_messages_chat_ts
 ON messages(chat_id, timestamp)
 """
 
+CREATE_SETTINGS_SQL = """
+CREATE TABLE IF NOT EXISTS chat_settings (
+    chat_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (chat_id, key)
+)
+"""
+
 
 class ContextService:
     """Хранение истории чата в SQLite."""
@@ -42,6 +51,7 @@ class ContextService:
         self._db = await aiosqlite.connect(self.db_path)
         await self._db.execute(CREATE_TABLE_SQL)
         await self._db.execute(CREATE_INDEX_SQL)
+        await self._db.execute(CREATE_SETTINGS_SQL)
         await self._db.commit()
         logger.info("Context DB initialized: %s", self.db_path)
 
@@ -89,3 +99,20 @@ class ContextService:
         await self._db.execute("DELETE FROM messages WHERE chat_id = ?", (chat_id,))
         await self._db.commit()
         logger.info("Context cleared for chat %s", chat_id)
+
+    async def get_setting(self, chat_id: str, key: str) -> str | None:
+        """Получить настройку чата."""
+        cursor = await self._db.execute(
+            "SELECT value FROM chat_settings WHERE chat_id = ? AND key = ?",
+            (chat_id, key),
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
+
+    async def set_setting(self, chat_id: str, key: str, value: str) -> None:
+        """Установить настройку чата."""
+        await self._db.execute(
+            "INSERT OR REPLACE INTO chat_settings (chat_id, key, value) VALUES (?, ?, ?)",
+            (chat_id, key, value),
+        )
+        await self._db.commit()
