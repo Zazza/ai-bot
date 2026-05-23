@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 from typing import TYPE_CHECKING
 
 from core.models import HistoryMessage, InternalMessage, InternalResponse, Role
@@ -29,6 +30,12 @@ WATCH_VISION_PROMPT = (
     "Если людей нет — скажи что никого не видно, одним предложением. "
     "Если в подписи к фото указано имя — используй его при описании. "
     "Отвечай коротко и по делу, 1-3 предложения."
+)
+
+# Ключевые слова для автоматического запуска поиска
+SEARCH_TRIGGER_WORDS = re.compile(
+    r'\b(?:найди|поищи|ищи|поиск|найти|где купить|где найти|сколько стоит|lookup|search)\b',
+    re.IGNORECASE,
 )
 
 
@@ -128,10 +135,17 @@ class Engine:
         user_content = f"{msg.username}: {msg.text}" if msg.username else msg.text
         messages.append({"role": "user", "content": user_content})
 
-        # 5. LLM вызов (с поиском или без)
-        tools = None
-        if cfg.llm.tools_enabled and self.search and cfg.search.enabled:
-            tools = self.search.get_tools_schema()
+        # 5. Автоматический поиск по ключевым словам
+        search_context = ""
+        if msg.text and self.search and cfg.search.enabled:
+            if SEARCH_TRIGGER_WORDS.search(msg.text):
+                logger.info("Search trigger detected in: %.80s", msg.text)
+                results = await self.search.search(msg.text)
+                if results:
+                    search_context = "Результаты поиска:\n"
+                    for r in results:
+                        search_context += f"- {r['title']}: {r['snippet']}\n"
+                    logger.info("Search returned %d results", len(results))
 
         response_text = ""
 
@@ -140,7 +154,10 @@ class Engine:
                 messages.append({"role": "user", "content": WATCH_VISION_PROMPT})
             response_text = await self.llm.vision(messages, msg.image_base64)
         else:
-            response_text = await self._chat_with_tools(messages, tools)
+            if search_context:
+                messages.append({"role": "assistant", "content": "Сейчас поищу..."})
+                messages.append({"role": "user", "content": f"Вот что нашла:\n\n{search_context}\nОтветь на основе этих результатов, коротко и по делу."})
+            response_text = await self._chat_with_tools(messages, tools=None)
 
         # 6. Safety check ответа
         if self.safety and cfg.safety.enabled:
