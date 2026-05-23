@@ -39,6 +39,19 @@ SEARCH_TRIGGER_WORDS = re.compile(
 )
 
 
+def _extract_search_query(text: str) -> str:
+    """Извлечь чистый поисковый запрос из сообщения пользователя."""
+    # Найти позицию триггерного слова и взять всё после него
+    m = SEARCH_TRIGGER_WORDS.search(text)
+    if not m:
+        return text
+    query = text[m.end():].strip()
+    # Убрать разделители в начале (: — -)
+    query = re.sub(r'^[\s:—\-–]+', '', query).strip()
+    # Если пусто — взять весь текст
+    return query or text
+
+
 class Engine:
     """Adapter-agnostic processing pipeline."""
 
@@ -139,8 +152,9 @@ class Engine:
         search_context = ""
         if msg.text and self.search and cfg.search.enabled:
             if SEARCH_TRIGGER_WORDS.search(msg.text):
-                logger.info("Search trigger detected in: %.80s", msg.text)
-                results = await self.search.search(msg.text)
+                search_query = _extract_search_query(msg.text)
+                logger.info("Search trigger: query='%s'", search_query)
+                results = await self.search.search(search_query)
                 if results:
                     search_context = "Результаты поиска:\n"
                     for r in results:
