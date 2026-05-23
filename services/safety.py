@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -75,11 +76,13 @@ class SafetyFilter:
         return self._keyword_check(text)
 
     def _keyword_check(self, text: str) -> tuple[bool, str | None]:
-        """Keyword check — быстрый, без LLM."""
+        """Keyword check — по границам слов, без LLM."""
         lower = text.lower()
         for topic, words in self._keywords.items():
             for word in words:
-                if word in lower:
+                # Match по границам слов чтобы избежать ложных срабатываний
+                # "косяк" не совпадёт с "закосяк", но совпадёт с "косяк"
+                if re.search(r'\b' + re.escape(word) + r'\b', lower):
                     return False, topic
         return True, None
 

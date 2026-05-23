@@ -62,7 +62,10 @@ class TelegramAdapter(BaseAdapter):
         await self.dp.start_polling(self.bot)
 
     async def stop(self) -> None:
-        await self.dp.stop_polling()
+        try:
+            await self.dp.stop_polling()
+        except RuntimeError:
+            pass  # Polling wasn't started yet
         await self.bot.session.close()
 
     # ── Commands ──────────────────────────────────────────────
