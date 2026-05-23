@@ -10,10 +10,16 @@ llm:
   provider: "vsellm"
   api_key: "API_KEY_HERE"
   base_url: "https://api.vsellm.ru/v1"
-  model: "gpt-4o-mini"
-  vision_model: "gpt-4o-mini"
-  max_tokens: 1024
+  # Текстовая модель. Дешёвые варианты: qwen/qwen3.5-flash (4₽), openai/gpt-5-nano (4₽)
+  # С function calling: gpt-4o-mini (11₽)
+  model: "qwen/qwen3.5-flash"
+  # Vision модель для фото. z-ai/glm-4.6v-flash — самая дешёвая (1₽/8₽)
+  vision_model: "z-ai/glm-4.6v-flash"
+  max_tokens: 4096        # чем больше — тем меньше шанс пустого ответа
   temperature: 0.8
+  # Большинство дешёвых моделей НЕ поддерживают function calling.
+  # Поиск работает через автоматическое обнаружение ключевых слов (найди, поищи и т.д.)
+  tools_enabled: false
 
 personality:
   name: "Машка"
@@ -44,7 +50,9 @@ safety:
 
 search:
   enabled: true
-  searxng_url: "http://searxng:8080"
+  # !!! Если bot использует network_mode: host — указывать 127.0.0.1, не имя сервиса Docker !!!
+  # Если bot в обычной сети Docker — указывать имя сервиса (searxng)
+  searxng_url: "http://127.0.0.1:8080"
   language: "ru"
   max_results: 5
 
@@ -53,3 +61,24 @@ chat:
   rate_limit_per_min: 30   # лимит на пользователя
   respond_to_all: false    # false = только по обращению, true = иногда встревать
   response_probability: 0.15  # шанс ответить на общее сообщение (если respond_to_all)
+
+# HTTP API для приёма фото/сообщений от внешних систем (HA/Frigate)
+api:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8081               # 8080 занят SearXNG если на одном хосте
+  token: "YOUR_BEARER_TOKEN"
+
+# --- Докрутки для VPS / Docker ---
+
+# Прокси для Telegram (если бот в РФ):
+# Установить переменную окружения TELEGRAM_PROXY
+# Например: export TELEGRAM_PROXY=socks5://127.0.0.1:1080
+# Или в docker-compose.yml: environment: TELEGRAM_PROXY=socks5://127.0.0.1:1080
+
+# Порты при network_mode: host:
+# - port mappings в docker-compose.yml ИГНОРИРУЮТСЯ
+# - Сервисы слушают напрямую на портах хоста
+# - SearXNG: 127.0.0.1:8080 (только localhost)
+# - Bot API: порт из config.yaml (api.port)
+# - Bot Telegram polling: через прокси

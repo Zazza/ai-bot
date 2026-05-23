@@ -1,0 +1,50 @@
+# AI Bot — пример docker-compose
+# Скопируй в docker-compose.yml и настрой
+
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Прокси для Telegram API (если бот в РФ)
+      # Формат: protocol://host:port
+      # Поддерживаемые: socks5, socks4, http
+      - TELEGRAM_PROXY=socks5://127.0.0.1:1080
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - bot-data:/app/data
+    depends_on:
+      - searxng
+    # ============================================
+    # ВАЖНО: выберите ОДИН из двух вариантов сети
+    # ============================================
+
+    # ВАРИАНТ 1: network_mode: host (рекомендуется для VPS)
+    # - Контейнер использует сеть хоста напрямую
+    # - port mappings выше ИГНОРИРУЮТСЯ
+    # - Прокси (socks5://127.0.0.1:1080) доступен напрямую
+    # - В config.yaml: searxng_url = "http://127.0.0.1:8080"
+    # - API слушает на порту из config.yaml (api.port)
+    network_mode: host
+
+    # ВАРИАНТ 2: обычная Docker сеть (по умолчанию)
+    # - Раскомментируйте ports, закомментируйте network_mode: host
+    # - Прокси недоступен как 127.0.0.1, нужен host.docker.internal или IP хоста
+    # - В config.yaml: searxng_url = "http://searxng:8080"
+    # ports:
+    #   - "8081:8080"   # API порт (наружу)
+    #   - "127.0.0.1:8081:8080"  # API порт (только localhost)
+
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    volumes:
+      - ./searxng-settings.yml:/etc/searxng/settings.yml:ro
+    # SearXNG на localhost:8080 — доступен боту при network_mode: host
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  bot-data:
