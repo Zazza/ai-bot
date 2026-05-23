@@ -158,7 +158,7 @@ class Engine:
                 if results:
                     search_context = "Результаты поиска:\n"
                     for r in results:
-                        search_context += f"- {r['title']}: {r['snippet']}\n"
+                        search_context += f"- {r['title']}: {r['snippet']}\n  {r['url']}\n"
                     logger.info("Search returned %d results", len(results))
 
         response_text = ""
@@ -170,7 +170,7 @@ class Engine:
         else:
             if search_context:
                 messages.append({"role": "assistant", "content": "Сейчас поищу..."})
-                messages.append({"role": "user", "content": f"Вот что нашла:\n\n{search_context}\nОтветь на основе этих результатов, коротко и по делу."})
+                messages.append({"role": "user", "content": f"Вот что нашла:\n\n{search_context}\nОбязательно включи ссылки (URL) в ответ. Коротко, по делу, с ссылками."})
             response_text = await self._chat_with_tools(messages, tools=None)
 
         # 6. Safety check ответа
