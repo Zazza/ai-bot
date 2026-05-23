@@ -181,8 +181,9 @@ class TelegramAdapter(BaseAdapter):
             return
 
         # Проверить mention/reply
-        is_mention = False
-        if msg.text:
+        # В приватном чате — всегда "обращаются" к боту
+        is_mention = msg.chat.type == "private"
+        if not is_mention and msg.text:
             is_mention = f"@{self._bot_username}".lower() in msg.text.lower()
 
         is_reply_to_bot = False
